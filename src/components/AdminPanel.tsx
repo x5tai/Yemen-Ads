@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { User, Ad, Category, Banner } from "../types";
 import { 
   ShieldAlert, 
@@ -15,7 +15,8 @@ import {
   MessageSquare,
   AlertTriangle,
   FolderPlus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Upload
 } from "lucide-react";
 import { 
   BarChart, 
@@ -61,6 +62,51 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newBannerDesc, setNewBannerDesc] = useState("");
   const [newBannerImg, setNewBannerImg] = useState("");
   const [isAddingBanner, setIsAddingBanner] = useState(false);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingBanner, setIsDraggingBanner] = useState(false);
+
+  const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      processBannerFile(e.target.files[0]);
+    }
+  };
+
+  const handleBannerDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDraggingBanner(true);
+  };
+
+  const handleBannerDragLeave = () => {
+    setIsDraggingBanner(false);
+  };
+
+  const handleBannerDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDraggingBanner(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processBannerFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const processBannerFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setActionError("يرجى اختيار ملف صورة صالح");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setActionError("حجم الصورة كبير جداً، الحد الأقصى هو 8 ميجابايت");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      if (uploadEvent.target?.result) {
+        setNewBannerImg(uploadEvent.target.result as string);
+        setActionSuccess("تم رفع وتحويل صورة البنر بنجاح");
+        setTimeout(() => setActionSuccess(""), 3000);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const fetchMetrics = async () => {
     try {
@@ -942,18 +988,70 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-300 block">
-                    رابط الصورة المباشر <span className="text-rose-500">*</span>
+                    صورة البنر الإعلاني <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="url"
-                    required
-                    value={newBannerImg}
-                    onChange={(e) => setNewBannerImg(e.target.value)}
-                    placeholder="https://images.unsplash.com/photo-..."
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm focus:outline-none dark:text-white placeholder-slate-400"
-                  />
+
+                  {/* Drag and Drop Zone */}
+                  <div
+                    onDragOver={handleBannerDragOver}
+                    onDragLeave={handleBannerDragLeave}
+                    onDrop={handleBannerDrop}
+                    onClick={() => bannerFileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all ${
+                      isDraggingBanner
+                        ? "border-emerald-500 bg-emerald-50/10"
+                        : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40"
+                    }`}
+                  >
+                    <input
+                      ref={bannerFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleBannerFileChange}
+                      className="hidden"
+                    />
+                    
+                    {newBannerImg ? (
+                      <div className="relative group/preview inline-block">
+                        <img
+                          src={newBannerImg}
+                          alt="Banner Preview"
+                          className="h-24 w-auto max-w-full rounded-lg object-contain mx-auto border border-slate-200 dark:border-slate-700 bg-slate-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setNewBannerImg("");
+                          }}
+                          className="absolute -top-1.5 -left-1.5 p-1 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-all"
+                          title="حذف الصورة"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 text-slate-500 dark:text-slate-400">
+                        <Upload className="h-6 w-6 mx-auto text-slate-400" />
+                        <p className="text-[11px] font-bold">اسحب صورة البنر وأفلتها هنا، أو اضغط للتصفح</p>
+                        <p className="text-[9px] text-slate-400 dark:text-slate-500">تدعم صيغ صور JPG، PNG، WebP حتى 8 ميجابايت</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Alternative URL Input */}
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-slate-400 text-center font-bold">أو أدخل رابط الصورة المباشر أدناه:</p>
+                    <input
+                      type="url"
+                      value={newBannerImg.startsWith("data:") ? "" : newBannerImg}
+                      onChange={(e) => setNewBannerImg(e.target.value)}
+                      placeholder="https://images.unsplash.com/photo-..."
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm focus:outline-none dark:text-white placeholder-slate-400"
+                    />
+                  </div>
                 </div>
 
                 <button

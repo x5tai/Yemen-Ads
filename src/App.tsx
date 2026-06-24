@@ -400,8 +400,8 @@ export default function App() {
   const fillQuickDemoAccount = (role: "admin" | "user") => {
     setAuthError("");
     if (role === "admin") {
-      setAuthEmail("admin@ads.com");
-      setAuthPassword("admin");
+      setAuthEmail("admin@yemenads.com");
+      setAuthPassword("YemenAds2026!");
     } else {
       setAuthEmail("ahmed@ads.com");
       setAuthPassword("user");
@@ -982,6 +982,30 @@ export default function App() {
               >
                 {isRegisterMode ? "تأسيس الحساب والمتابعة" : "تسجيل الدخول الآمن"}
               </button>
+
+              {!isRegisterMode && (
+                <div className="pt-3 border-t border-neutral-100 dark:border-neutral-800 space-y-2">
+                  <p className="text-[10px] text-center font-bold text-neutral-400 dark:text-neutral-500">
+                    دخول سريع للحسابات التجريبية:
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fillQuickDemoAccount("user")}
+                      className="py-1.5 px-2 bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-950 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-lg text-[10px] font-bold transition-all border border-neutral-200/60 dark:border-neutral-800"
+                    >
+                      👤 حساب عميل تجريبي
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillQuickDemoAccount("admin")}
+                      className="py-1.5 px-2 bg-amber-50/50 hover:bg-amber-50 dark:bg-amber-950/10 dark:hover:bg-amber-950/20 text-amber-700 dark:text-amber-400 rounded-lg text-[10px] font-bold transition-all border border-amber-200/40 dark:border-amber-900/30"
+                    >
+                      👑 حساب المدير (الأدمن)
+                    </button>
+                  </div>
+                </div>
+              )}
             </form>
 
             {/* Register Mode toggle footer link */}

@@ -20,11 +20,18 @@ export const AdCard: React.FC<AdCardProps> = ({
   showAdminStatus = false,
 }) => {
   // Format price
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number, currency?: string) => {
+    let currLabel = "ريال يمني";
+    if (currency === "SAR") currLabel = "ريال سعودي";
+    else if (currency === "USD") currLabel = "دولار أمريكي";
+    else if (currency === "YER") currLabel = "ريال يمني";
+
+    if (price === 0) return "مجاني / للتفاوض";
+
     if (price >= 1000000) {
-      return `${(price / 1000000).toLocaleString(undefined, { maximumFractionDigits: 2 })} مليون ريال`;
+      return `${(price / 1000000).toLocaleString(undefined, { maximumFractionDigits: 2 })} مليون ${currLabel}`;
     }
-    return `${price.toLocaleString()} ريال`;
+    return `${price.toLocaleString()} ${currLabel}`;
   };
 
   // Format date relative or simplified
@@ -144,7 +151,7 @@ export const AdCard: React.FC<AdCardProps> = ({
         <div className="flex items-center justify-between">
           <span className="text-[10px] text-neutral-400 font-medium">السعر المطلوب</span>
           <span className="text-sm font-bold text-neutral-900 dark:text-white font-mono">
-            {formatPrice(ad.price)}
+            {formatPrice(ad.price, ad.currency)}
           </span>
         </div>
       </div>

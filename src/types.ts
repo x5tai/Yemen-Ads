@@ -15,6 +15,7 @@ export interface Category {
   nameEn: string;
   icon: string; // Lucide icon name
   count?: number;
+  imageUrl?: string; // Optional image URL for the category
 }
 
 export interface Ad {
@@ -22,6 +23,7 @@ export interface Ad {
   title: string;
   description: string;
   price: number;
+  currency?: 'YER' | 'SAR' | 'USD'; // Yemen Riyal, Saudi Riyal, or US Dollar
   location: string;
   categoryId: string;
   images: string[]; // URLs or base64
@@ -32,6 +34,7 @@ export interface Ad {
   status: 'approved' | 'pending' | 'rejected';
   createdAt: string;
   views: number;
+  jobDescription?: string; // Specific field to explain the job
 }
 
 export interface Message {
@@ -61,4 +64,18 @@ export interface Banner {
   imageUrl: string;
   link: string;
   active: boolean;
+}
+
+export interface InAppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  type: 'reply' | 'price_drop' | 'system';
+  adId?: string;
+  oldPrice?: number;
+  newPrice?: number;
+  currency?: 'YER' | 'SAR' | 'USD';
+  isRead: boolean;
+  createdAt: string;
 }

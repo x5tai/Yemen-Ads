@@ -13,7 +13,11 @@ import {
   Heart,
   ChevronLeft,
   ChevronRight,
-  Bookmark
+  Bookmark,
+  Share2,
+  Copy,
+  Facebook,
+  MessageCircle
 } from "lucide-react";
 
 interface AdDetailsModalProps {
@@ -42,6 +46,39 @@ export const AdDetailsModal: React.FC<AdDetailsModalProps> = ({
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [messageSuccess, setMessageSuccess] = useState(false);
   const [messageError, setMessageError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const getShareUrl = () => {
+    return `${window.location.origin}${window.location.pathname}?ad=${ad.id}`;
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(getShareUrl());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const getShareText = () => {
+    const currLabel = ad.currency === "SAR" ? "ريال سعودي" : ad.currency === "USD" ? "دولار أمريكي" : "ريال يمني";
+    const priceText = ad.price === 0 ? "مجاني / للتفاوض" : `${ad.price.toLocaleString()} ${currLabel}`;
+    return `شاهد هذا الإعلان على اليمن إعلانات (Yemen Ads):\n"${ad.title}"\nالسعر: ${priceText}\nالموقع: ${ad.location}`;
+  };
+
+  const getWhatsappUrl = () => {
+    return `https://api.whatsapp.com/send?text=${encodeURIComponent(getShareText() + "\n" + getShareUrl())}`;
+  };
+
+  const getFacebookUrl = () => {
+    return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getShareUrl())}`;
+  };
+
+  const getTwitterUrl = () => {
+    return `https://twitter.com/intent/tweet?url=${encodeURIComponent(getShareUrl())}&text=${encodeURIComponent(getShareText())}`;
+  };
+
+  const getTelegramUrl = () => {
+    return `https://t.me/share/url?url=${encodeURIComponent(getShareUrl())}&text=${encodeURIComponent(getShareText())}`;
+  };
 
   const isMyAd = currentUser && ad.userId === currentUser.id;
 
@@ -217,6 +254,19 @@ export const AdDetailsModal: React.FC<AdDetailsModalProps> = ({
                   {ad.description}
                 </p>
               </div>
+
+              {/* Job description statement if it exists */}
+              {ad.jobDescription && (
+                <div className="space-y-3 p-5 bg-emerald-50/20 dark:bg-slate-900/40 border border-emerald-100/30 dark:border-slate-700/80 rounded-2xl">
+                  <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-400 font-extrabold text-sm border-b border-emerald-100/40 dark:border-slate-700 pb-2">
+                    <Check className="h-4 w-4 text-emerald-600" />
+                    <span>بيان تفاصيل الوظيفة والشروط الرسمية:</span>
+                  </div>
+                  <p className="text-xs leading-relaxed whitespace-pre-wrap font-medium text-slate-700 dark:text-slate-200">
+                    {ad.jobDescription}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Right side (Price, Seller console, and Contact) */}
@@ -226,7 +276,19 @@ export const AdDetailsModal: React.FC<AdDetailsModalProps> = ({
               <div className="bg-emerald-50/50 dark:bg-slate-900/40 border border-emerald-100 dark:border-slate-700 rounded-3xl p-6 text-center space-y-1 shadow-sm">
                 <span className="text-xs text-emerald-800 dark:text-slate-400 font-semibold">السعر المعروض للبيع</span>
                 <p className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">
-                  {ad.price.toLocaleString()} ريال سعودي
+                  {(() => {
+                    let currLabel = "ريال يمني";
+                    if (ad.currency === "SAR") currLabel = "ريال سعودي";
+                    else if (ad.currency === "USD") currLabel = "دولار أمريكي";
+                    else if (ad.currency === "YER") currLabel = "ريال يمني";
+
+                    if (ad.price === 0) return "مجاني / للتفاوض";
+
+                    if (ad.price >= 1000000) {
+                      return `${(ad.price / 1000000).toLocaleString(undefined, { maximumFractionDigits: 2 })} مليون ${currLabel}`;
+                    }
+                    return `${ad.price.toLocaleString()} ${currLabel}`;
+                  })()}
                 </p>
               </div>
 
@@ -300,6 +362,99 @@ export const AdDetailsModal: React.FC<AdDetailsModalProps> = ({
                     </button>
                   </form>
                 )}
+              </div>
+
+              {/* Share Ad Card */}
+              <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl p-6 space-y-4 shadow-sm">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Share2 className="h-4 w-4 text-emerald-500 animate-pulse" />
+                  مشاركة هذا الإعلان
+                </h4>
+
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  أنشر الإعلان لزيادة فرصة البيع والوصول لجمهور أكبر عبر مختلف شبكات التواصل والرسائل.
+                </p>
+
+                {/* Direct copy link box */}
+                <div className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700/80 rounded-2xl">
+                  <input
+                    type="text"
+                    readOnly
+                    value={getShareUrl()}
+                    className="flex-1 bg-transparent border-none text-[10px] text-slate-500 dark:text-slate-400 font-mono focus:outline-none text-left select-all"
+                  />
+                  <button
+                    onClick={handleCopyLink}
+                    className={`px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1 transition-all ${
+                      copied
+                        ? "bg-emerald-500 text-white"
+                        : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60"
+                    }`}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="h-3 w-3" />
+                        <span>تم النسخ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" />
+                        <span>نسخ</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Social Share Buttons Grid */}
+                <div className="grid grid-cols-4 gap-2 pt-1">
+                  {/* WhatsApp */}
+                  <a
+                    href={getWhatsappUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center justify-center p-2 bg-neutral-50 hover:bg-emerald-50 dark:bg-neutral-950 dark:hover:bg-emerald-950/20 border border-neutral-100 dark:border-neutral-800 rounded-2xl transition-all group gap-1"
+                    title="مشاركة عبر واتساب"
+                  >
+                    <MessageCircle className="h-5 w-5 text-emerald-500 group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400">واتساب</span>
+                  </a>
+
+                  {/* Facebook */}
+                  <a
+                    href={getFacebookUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center justify-center p-2 bg-neutral-50 hover:bg-blue-50 dark:bg-neutral-950 dark:hover:bg-blue-950/20 border border-neutral-100 dark:border-neutral-800 rounded-2xl transition-all group gap-1"
+                    title="مشاركة عبر فيسبوك"
+                  >
+                    <Facebook className="h-5 w-5 text-blue-600 group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">فيسبوك</span>
+                  </a>
+
+                  {/* Telegram */}
+                  <a
+                    href={getTelegramUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center justify-center p-2 bg-neutral-50 hover:bg-sky-50 dark:bg-neutral-950 dark:hover:bg-sky-950/20 border border-neutral-100 dark:border-neutral-800 rounded-2xl transition-all group gap-1"
+                    title="مشاركة عبر تيليجرام"
+                  >
+                    <Send className="h-5 w-5 text-sky-500 group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-sky-600 dark:group-hover:text-sky-400">تيليجرام</span>
+                  </a>
+
+                  {/* Twitter / X */}
+                  <a
+                    href={getTwitterUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center justify-center p-2 bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-950 dark:hover:bg-slate-900 border border-neutral-100 dark:border-neutral-800 rounded-2xl transition-all group gap-1"
+                    title="مشاركة عبر إكس (تويتر)"
+                  >
+                    <Share2 className="h-5 w-5 text-slate-800 dark:text-slate-200 group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white">إكس</span>
+                  </a>
+                </div>
               </div>
 
             </div>

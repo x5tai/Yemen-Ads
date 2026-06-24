@@ -8,9 +8,11 @@ interface AddAdFormProps {
     title: string;
     description: string;
     price: number;
+    currency?: 'YER' | 'SAR' | 'USD';
     location: string;
     categoryId: string;
     images: string[];
+    jobDescription?: string;
   }) => Promise<Ad | null>;
   onCancel: () => void;
   initialAd?: Ad; // For editing mode
@@ -59,9 +61,11 @@ export const AddAdForm: React.FC<AddAdFormProps> = ({
   const [title, setTitle] = useState(initialAd?.title || "");
   const [description, setDescription] = useState(initialAd?.description || "");
   const [price, setPrice] = useState<string>(initialAd?.price ? String(initialAd.price) : "");
-  const [location, setLocation] = useState(initialAd?.location || "الرياض");
+  const [currency, setCurrency] = useState<'YER' | 'SAR' | 'USD'>(initialAd?.currency || "YER");
+  const [location, setLocation] = useState(initialAd?.location || "صنعاء");
   const [categoryId, setCategoryId] = useState(initialAd?.categoryId || (categories[0]?.id || ""));
   const [images, setImages] = useState<string[]>(initialAd?.images || []);
+  const [jobDescription, setJobDescription] = useState(initialAd?.jobDescription || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [success, setSuccess] = useState(false);
@@ -69,7 +73,22 @@ export const AddAdForm: React.FC<AddAdFormProps> = ({
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const locations = ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة", "أبها", "الخبر", "بريدة", "الهفوف"];
+  const locations = [
+    "صنعاء",
+    "عدن",
+    "تعز",
+    "الحديدة",
+    "إب",
+    "المكلا",
+    "ذمار",
+    "مأرب",
+    "سيئون",
+    "عتق",
+    "صعدة",
+    "عمران",
+    "حجة",
+    "البيضاء"
+  ];
 
   // Handle Drag-and-Drop
   const handleDrag = (e: React.DragEvent) => {
@@ -160,9 +179,11 @@ export const AddAdForm: React.FC<AddAdFormProps> = ({
         title,
         description,
         price: Number(price),
+        currency,
         location,
         categoryId,
         images,
+        jobDescription: categoryId === "cat-jobs" ? jobDescription : undefined,
       });
 
       if (res) {
@@ -276,21 +297,39 @@ export const AddAdForm: React.FC<AddAdFormProps> = ({
           </div>
         </div>
 
-        {/* Price */}
-        <div className="space-y-1.5">
-          <label className="flex items-center gap-1.5 text-xs font-bold text-neutral-700 dark:text-neutral-200">
-            <DollarSign className="h-4 w-4 text-neutral-400" />
-            السعر المطلوب (بالريال السعودي) <span className="text-rose-500">*</span>
-          </label>
-          <input
-            type="number"
-            required
-            min="0"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="مثال: 3500 (اكتب 0 إذا كان الإعلان للتبرع أو مجاني)"
-            className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-xs focus:ring-1 focus:ring-neutral-400 focus:outline-none dark:text-white placeholder-neutral-400"
-          />
+        {/* Price & Currency */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-neutral-700 dark:text-neutral-200">
+              <DollarSign className="h-4 w-4 text-neutral-400" />
+              السعر المطلوب <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="number"
+              required
+              min="0"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="مثال: 3500 (اكتب 0 إذا كان الإعلان للتبرع أو مجاني)"
+              className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-xs focus:ring-1 focus:ring-neutral-400 focus:outline-none dark:text-white placeholder-neutral-400"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-neutral-700 dark:text-neutral-200">
+              <Sparkles className="h-4 w-4 text-neutral-400" />
+              تحديد العملة <span className="text-rose-500">*</span>
+            </label>
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value as any)}
+              className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-xs focus:ring-1 focus:ring-neutral-400 focus:outline-none dark:text-white"
+            >
+              <option value="YER">ريال يمني (YER)</option>
+              <option value="SAR">ريال سعودي (SAR)</option>
+              <option value="USD">دولار أمريكي (USD)</option>
+            </select>
+          </div>
         </div>
 
         {/* Description */}
@@ -307,6 +346,24 @@ export const AddAdForm: React.FC<AddAdFormProps> = ({
             className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-xs focus:ring-1 focus:ring-neutral-400 focus:outline-none dark:text-white placeholder-neutral-400 leading-relaxed"
           ></textarea>
         </div>
+
+        {/* Job Description (Conditional for Jobs) */}
+        {categoryId === "cat-jobs" && (
+          <div className="space-y-1.5 p-4 bg-emerald-50/30 dark:bg-emerald-950/10 border border-emerald-100/50 dark:border-emerald-900/20 rounded-xl animate-fadeIn">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+              <FileText className="h-4 w-4 text-emerald-600" />
+              بيان وشرح تفاصيل الوظيفة الشاغرة <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              required={categoryId === "cat-jobs"}
+              rows={6}
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+              placeholder="اكتب بياناً تفصيلياً لشرح الوظيفة تشمل المسمى الوظيفي، المهام المطلوبة، شروط التقديم، الخبرات اللازمة، الراتب والمميزات..."
+              className="w-full px-3 py-2 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-xs focus:ring-1 focus:ring-emerald-400 focus:outline-none dark:text-white placeholder-neutral-400 leading-relaxed"
+            ></textarea>
+          </div>
+        )}
 
         {/* Image Upload Area */}
         <div className="space-y-3">

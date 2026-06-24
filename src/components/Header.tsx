@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { User } from "../types";
 import { 
   Megaphone, 
   Search, 
@@ -12,8 +11,13 @@ import {
   Moon, 
   SlidersHorizontal,
   Home,
-  Bookmark
+  Bookmark,
+  Bell,
+  BellOff,
+  Trash2,
+  Check
 } from "lucide-react";
+import { User, InAppNotification } from "../types";
 
 interface HeaderProps {
   currentUser: User | null;
@@ -29,6 +33,10 @@ interface HeaderProps {
   selectedLocation: string;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+  notifications: InAppNotification[];
+  onNotificationClick: (notif: InAppNotification) => void;
+  onMarkAllNotificationsRead: () => void;
+  onDeleteNotification: (id: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -45,14 +53,21 @@ export const Header: React.FC<HeaderProps> = ({
   selectedLocation,
   isDarkMode,
   toggleDarkMode,
+  notifications,
+  onNotificationClick,
+  onMarkAllNotificationsRead,
+  onDeleteNotification,
 }) => {
   const [searchText, setSearchText] = useState("");
   const [catId, setCatId] = useState(selectedCategoryId);
   const [loc, setLoc] = useState(selectedLocation);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
 
-  const locations = ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة", "أبها"];
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const locations = ["صنعاء", "عدن", "تعز", "الحديدة", "إب", "المكلا", "مأرب"];
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,10 +90,10 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div className="hidden sm:block">
               <h1 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight leading-none">
-                حراج العروبة
+                Yemen Ads
               </h1>
               <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-medium mt-0.5 block">
-                منصة الإعلانات المبوبة المجانية
+                منصة الإعلانات المبوبة اليمنية المجانية
               </span>
             </div>
           </div>
@@ -163,6 +178,104 @@ export const Header: React.FC<HeaderProps> = ({
               <PlusCircle className="h-3.5 w-3.5" />
               <span>أضف إعلان</span>
             </button>
+
+            {/* Notifications Dropdown */}
+            {currentUser && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
+                  className="relative p-1.5 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded-lg transition-colors cursor-pointer block"
+                  title="الإشعارات"
+                >
+                  <Bell className="h-4.5 w-4.5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                    </span>
+                  )}
+                </button>
+
+                {showNotificationsDropdown && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-30" 
+                      onClick={() => setShowNotificationsDropdown(false)}
+                    ></div>
+                    <div className="absolute left-0 mt-2 w-72 sm:w-80 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-lg py-2.5 z-40 transition-all text-right max-h-96 flex flex-col">
+                      <div className="flex items-center justify-between px-4 pb-2 border-b border-neutral-100 dark:border-neutral-800">
+                        <span className="text-xs font-extrabold text-neutral-800 dark:text-neutral-100">الإشعارات</span>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={() => {
+                              onMarkAllNotificationsRead();
+                            }}
+                            className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
+                          >
+                            تحديد الكل كمقروء
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="overflow-y-auto divide-y divide-neutral-100 dark:divide-neutral-800/60 max-h-80">
+                        {notifications.length === 0 ? (
+                          <div className="p-6 text-center text-neutral-400 dark:text-neutral-500 text-xs">
+                            <BellOff className="h-8 w-8 mx-auto mb-2 text-neutral-300 dark:text-neutral-700" />
+                            لا توجد إشعارات جديدة
+                          </div>
+                        ) : (
+                          notifications.map((notif) => (
+                            <div
+                              key={notif.id}
+                              onClick={() => {
+                                onNotificationClick(notif);
+                                setShowNotificationsDropdown(false);
+                              }}
+                              className={`p-3 text-right hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-all cursor-pointer relative group flex gap-3 ${
+                                !notif.isRead ? "bg-emerald-50/15 dark:bg-emerald-950/5 font-semibold" : ""
+                              }`}
+                            >
+                              <div className="shrink-0 mt-0.5">
+                                {notif.type === 'reply' ? (
+                                  <div className="p-1.5 bg-blue-50 dark:bg-blue-950/20 text-blue-500 dark:text-blue-400 rounded-lg">
+                                    <MessageSquare className="h-3.5 w-3.5" />
+                                  </div>
+                                ) : (
+                                  <div className="p-1.5 bg-amber-50 dark:bg-amber-950/20 text-amber-500 dark:text-amber-400 rounded-lg">
+                                    <Bookmark className="h-3.5 w-3.5" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0 pr-1">
+                                <p className="text-[11px] text-neutral-800 dark:text-neutral-200">
+                                  {notif.title}
+                                </p>
+                                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-0.5 leading-normal line-clamp-2 font-normal">
+                                  {notif.content}
+                                </p>
+                                <p className="text-[9px] text-neutral-400 dark:text-neutral-500 mt-1 font-mono">
+                                  {new Date(notif.createdAt).toLocaleTimeString("ar-YE", { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteNotification(notif.id);
+                                }}
+                                className="absolute top-2 left-2 p-1 text-neutral-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                title="حذف"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* User Session Profile / Login */}
             {currentUser ? (

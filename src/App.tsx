@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { User, Ad, Category, Banner } from "./types";
+import { User, Ad, Category, Banner, InAppNotification } from "./types";
 import { Header } from "./components/Header";
 import { AdCard } from "./components/AdCard";
 import { AddAdForm } from "./components/AddAdForm";
@@ -20,7 +20,10 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Instagram,
+  Facebook,
+  MessageCircle
 } from "lucide-react";
 
 export default function App() {
@@ -31,6 +34,7 @@ export default function App() {
   const [favorites, setFavorites] = useState<Ad[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
+  const [notifications, setNotifications] = useState<InAppNotification[]>([]);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState("");
@@ -155,6 +159,30 @@ export default function App() {
     loadInitialData();
   }, []);
 
+  // Auto-open ad details from deep link (?ad=ad-X)
+  useEffect(() => {
+    if (ads.length > 0) {
+      const adId = new URLSearchParams(window.location.search).get("ad");
+      if (adId && (!activeAdDetails || activeAdDetails.id !== adId)) {
+        const found = ads.find((a) => a.id === adId);
+        if (found) {
+          setActiveAdDetails(found);
+        }
+      }
+    }
+  }, [ads]);
+
+  // Synchronize browser URL query param with active ad details state
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (activeAdDetails) {
+      url.searchParams.set("ad", activeAdDetails.id);
+    } else {
+      url.searchParams.delete("ad");
+    }
+    window.history.replaceState({}, "", url.toString());
+  }, [activeAdDetails]);
+
   // Sync ads on filter change
   useEffect(() => {
     fetchAllAds();
@@ -169,6 +197,108 @@ export default function App() {
       return () => clearInterval(timer);
     }
   }, [banners]);
+
+  // ----------------------------------------------------
+  // IN-APP NOTIFICATIONS HANDLERS & FETCHERS
+  // ----------------------------------------------------
+
+  const fetchNotifications = async () => {
+    if (!currentUser) return;
+    try {
+      const response = await fetch("/api/notifications", {
+        headers: {
+          "Authorization": `Bearer ${currentUser.id}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data);
+      }
+    } catch (e) {
+      console.error("Error fetching notifications:", e);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    if (!currentUser) return;
+    try {
+      const response = await fetch("/api/notifications/mark-all-read", {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${currentUser.id}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data);
+      }
+    } catch (e) {
+      console.error("Error marking notifications as read:", e);
+    }
+  };
+
+  const handleNotificationClick = async (notif: InAppNotification) => {
+    if (!currentUser) return;
+    if (!notif.isRead) {
+      try {
+        const response = await fetch(`/api/notifications/${notif.id}/read`, {
+          method: "PUT",
+          headers: {
+            "Authorization": `Bearer ${currentUser.id}`
+          }
+        });
+        if (response.ok) {
+          setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+        }
+      } catch (e) {
+        console.error("Error marking notification read:", e);
+      }
+    }
+    
+    if (notif.adId) {
+      const foundAd = ads.find(a => a.id === notif.adId);
+      if (foundAd) {
+        setActiveAdDetails(foundAd);
+      } else {
+        try {
+          const response = await fetch(`/api/ads/${notif.adId}`);
+          if (response.ok) {
+            const freshAd = await response.json();
+            setActiveAdDetails(freshAd);
+          }
+        } catch (e) {
+          console.error("Error fetching notification ad details:", e);
+        }
+      }
+    }
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${currentUser.id}`
+        }
+      });
+      if (response.ok) {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      }
+    } catch (e) {
+      console.error("Error deleting notification:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 10000); // 10 seconds polling
+      return () => clearInterval(interval);
+    } else {
+      setNotifications([]);
+    }
+  }, [currentUser]);
 
   // ----------------------------------------------------
   // INTERACTIVE AUTH ACTIONS
@@ -447,6 +577,10 @@ export default function App() {
         selectedLocation={selectedLocation}
         isDarkMode={isDarkMode}
         toggleDarkMode={toggleDarkMode}
+        notifications={notifications}
+        onNotificationClick={handleNotificationClick}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+        onDeleteNotification={handleDeleteNotification}
       />
 
       {/* Main Container */}
@@ -574,13 +708,16 @@ export default function App() {
                     onChange={(e) => setSelectedLocation(e.target.value)}
                     className="w-full px-2.5 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200/80 dark:border-neutral-800 rounded-lg text-xs focus:outline-none dark:text-white"
                   >
-                    <option value="">كل مدن المملكة</option>
-                    <option value="الرياض">الرياض</option>
-                    <option value="جدة">جدة</option>
-                    <option value="الدمام">الدمام</option>
-                    <option value="مكة المكرمة">مكة المكرمة</option>
-                    <option value="المدينة المنورة">المدينة المنورة</option>
-                    <option value="أبها">أبها</option>
+                    <option value="">كل المدن اليمنية</option>
+                    <option value="صنعاء">صنعاء</option>
+                    <option value="عدن">عدن</option>
+                    <option value="تعز">تعز</option>
+                    <option value="الحديدة">الحديدة</option>
+                    <option value="إب">إب</option>
+                    <option value="المكلا">المكلا</option>
+                    <option value="ذمار">ذمار</option>
+                    <option value="مأرب">مأرب</option>
+                    <option value="سيئون">سيئون</option>
                   </select>
                 </div>
 
@@ -906,14 +1043,84 @@ export default function App() {
       )}
 
       {/* Footer bar */}
-      <footer className="bg-white dark:bg-neutral-950 border-t border-neutral-200/60 dark:border-neutral-900 py-6 text-center text-xs text-neutral-400 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 space-y-1 flex flex-col sm:flex-row items-center justify-between gap-4 font-medium">
-          <p>حقوق النشر © 2026 حراج العروبة. جميع الحقوق محفوظة.</p>
-          <div className="flex gap-4">
-            <a href="#" className="hover:text-neutral-900 dark:hover:text-white">الشروط والأحكام</a>
-            <a href="#" className="hover:text-neutral-900 dark:hover:text-white">سياسة الخصوصية</a>
-            <a href="#" className="hover:text-neutral-900 dark:hover:text-white">الدعم الفني والشكاوى</a>
+      <footer className="bg-white dark:bg-neutral-900 border-t border-neutral-200/60 dark:border-neutral-800/80 py-8 text-xs text-neutral-400 mt-auto text-right">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+          
+          {/* Contacts Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-6 border-b border-neutral-100 dark:border-neutral-800">
+            {/* Instagram */}
+            <a
+              href="https://www.instagram.com/x5tai?igsh=cDV5Ym5vaTVleXJt"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-950 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition-all hover:scale-102 border border-neutral-100 dark:border-neutral-800/60 group"
+            >
+              <div className="p-2 bg-pink-50 dark:bg-pink-950/20 text-pink-600 dark:text-pink-400 rounded-lg group-hover:bg-pink-100 transition-colors">
+                <Instagram className="h-4 w-4" />
+              </div>
+              <div>
+                <span className="block text-[10px] text-neutral-400 font-semibold">انستجرام</span>
+                <span className="text-[11px] font-bold text-neutral-700 dark:text-neutral-200">@x5tai</span>
+              </div>
+            </a>
+
+            {/* Facebook */}
+            <a
+              href="https://www.facebook.com/share/1Cah5cfRV8/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-950 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition-all hover:scale-102 border border-neutral-100 dark:border-neutral-800/60 group"
+            >
+              <div className="p-2 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 rounded-lg group-hover:bg-blue-100 transition-colors">
+                <Facebook className="h-4 w-4" />
+              </div>
+              <div>
+                <span className="block text-[10px] text-neutral-400 font-semibold">فيس بوك</span>
+                <span className="text-[11px] font-bold text-neutral-700 dark:text-neutral-200">Yemen Ads Share</span>
+              </div>
+            </a>
+
+            {/* Phone */}
+            <a
+              href="tel:779217474"
+              className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-950 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition-all hover:scale-102 border border-neutral-100 dark:border-neutral-800/60 group"
+            >
+              <div className="p-2 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-lg group-hover:bg-amber-100 transition-colors">
+                <Phone className="h-4 w-4 animate-pulse" />
+              </div>
+              <div>
+                <span className="block text-[10px] text-neutral-400 font-semibold">اتصال مباشر</span>
+                <span className="text-[11px] font-bold text-neutral-700 dark:text-neutral-200 font-mono">779217474</span>
+              </div>
+            </a>
+
+            {/* WhatsApp */}
+            <a
+              href="https://wa.me/967775082143"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-950 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition-all hover:scale-102 border border-neutral-100 dark:border-neutral-800/60 group"
+            >
+              <div className="p-2 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded-lg group-hover:bg-emerald-100 transition-colors">
+                <MessageCircle className="h-4 w-4" />
+              </div>
+              <div>
+                <span className="block text-[10px] text-neutral-400 font-semibold">واتساب</span>
+                <span className="text-[11px] font-bold text-neutral-700 dark:text-neutral-200 font-mono">+967 775082143</span>
+              </div>
+            </a>
           </div>
+
+          {/* Copyrights row */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 font-medium">
+            <p>جميع الحقوق محفوظة في <span className="font-extrabold text-neutral-700 dark:text-white">Yemen Ads</span> © 2026.</p>
+            <div className="flex gap-4">
+              <a href="#" className="hover:text-neutral-950 dark:hover:text-white">الشروط والأحكام</a>
+              <a href="#" className="hover:text-neutral-950 dark:hover:text-white">سياسة الخصوصية</a>
+              <a href="#" className="hover:text-neutral-950 dark:hover:text-white">الدعم الفني والشكاوى</a>
+            </div>
+          </div>
+
         </div>
       </footer>
 

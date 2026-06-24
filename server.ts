@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
-import { User, Category, Ad, Message, Banner, ChatThread } from "./src/types";
+import { User, Category, Ad, Message, Banner, ChatThread, InAppNotification } from "./src/types";
 
 const app = express();
 app.use(express.json({ limit: "50mb" })); // Support uploading multiple images (base64)
@@ -19,16 +19,17 @@ interface DatabaseSchema {
   ads: Ad[];
   messages: Message[];
   banners: Banner[];
+  notifications: InAppNotification[];
 }
 
 const defaultDatabase: DatabaseSchema = {
   users: [
     {
       id: "usr-admin",
-      email: "admin@ads.com",
-      password: "admin", // Simple plain password for demo purposes
-      name: "أبو فهد (المشرف العام)",
-      phone: "0500000000",
+      email: "admin@yemenads.com",
+      password: "YemenAds2026!",
+      name: "مدير المنصة (Yemen Ads)",
+      phone: "779217474",
       role: "admin",
       isBlocked: false,
       createdAt: new Date().toISOString(),
@@ -39,8 +40,8 @@ const defaultDatabase: DatabaseSchema = {
       id: "usr-1",
       email: "ahmed@ads.com",
       password: "user",
-      name: "أحمد الحربي",
-      phone: "0512345678",
+      name: "أحمد اليماني",
+      phone: "775082143",
       role: "user",
       isBlocked: false,
       createdAt: new Date().toISOString(),
@@ -51,8 +52,8 @@ const defaultDatabase: DatabaseSchema = {
       id: "usr-2",
       email: "sara@ads.com",
       password: "user",
-      name: "سارة العتيبي",
-      phone: "0598765432",
+      name: "سارة الصنعاني",
+      phone: "771234567",
       role: "user",
       isBlocked: false,
       createdAt: new Date().toISOString(),
@@ -61,12 +62,12 @@ const defaultDatabase: DatabaseSchema = {
     }
   ],
   categories: [
-    { id: "cat-cars", nameAr: "سيارات", nameEn: "Cars", icon: "Car" },
-    { id: "cat-realestate", nameAr: "عقارات", nameEn: "Real Estate", icon: "Home" },
-    { id: "cat-electronics", nameAr: "إلكترونيات", nameEn: "Electronics", icon: "Smartphone" },
-    { id: "cat-jobs", nameAr: "وظائف", nameEn: "Jobs", icon: "Briefcase" },
-    { id: "cat-services", nameAr: "خدمات", nameEn: "Services", icon: "Wrench" },
-    { id: "cat-furniture", nameAr: "أثاث ومستلزمات منزلية", nameEn: "Furniture", icon: "Sofa" }
+    { id: "cat-cars", nameAr: "سيارات", nameEn: "Cars", icon: "Car", imageUrl: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&q=80&w=200" },
+    { id: "cat-realestate", nameAr: "عقارات", nameEn: "Real Estate", icon: "Home", imageUrl: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=200" },
+    { id: "cat-electronics", nameAr: "إلكترونيات", nameEn: "Electronics", icon: "Smartphone", imageUrl: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=200" },
+    { id: "cat-jobs", nameAr: "وظائف", nameEn: "Jobs", icon: "Briefcase", imageUrl: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=200" },
+    { id: "cat-services", nameAr: "خدمات", nameEn: "Services", icon: "Wrench", imageUrl: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&q=80&w=200" },
+    { id: "cat-furniture", nameAr: "أثاث ومستلزمات منزلية", nameEn: "Furniture", icon: "Sofa", imageUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&q=80&w=200" }
   ],
   ads: [
     {
@@ -74,15 +75,16 @@ const defaultDatabase: DatabaseSchema = {
       title: "تويوتا كامري 2023 فل كامل - بحالة الوكالة",
       description: "للبيع تويوتا كامري موديل 2023 فئة ليميتد فل كامل، اللون لؤلؤي، ممشى 15,000 كم فقط. صيانة منتظمة بالوكالة، تظليل حراري، شاشة ملاحة، فتحة سقف، وحساسات أمامية وخلفية. البدي وكالة وخالي من الحوادث والرش تماماً. السعر قابل للتفاوض البسيط للجادين فقط.",
       price: 95000,
-      location: "الرياض",
+      currency: "SAR",
+      location: "صنعاء",
       categoryId: "cat-cars",
       images: [
         "https://images.unsplash.com/photo-1621007947382-cc34a364650e?auto=format&fit=crop&q=80&w=800",
         "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&q=80&w=800"
       ],
       userId: "usr-1",
-      userName: "أحمد الحربي",
-      userPhone: "0512345678",
+      userName: "أحمد اليماني",
+      userPhone: "775082143",
       isFeatured: true,
       status: "approved",
       createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(), // 1 day ago
@@ -90,18 +92,19 @@ const defaultDatabase: DatabaseSchema = {
     },
     {
       id: "ad-2",
-      title: "شقة فاخرة للإيجار حي الملقا - تصميم مودرن",
-      description: "شقة سكنية فاخرة بتصميم مودرن للإيجار السنوي في حي الملقا الراقي بشمال الرياض. تتكون الشقة من: 3 غرف نوم (واحدة ماستر)، صالة واسعة ومفتوحة، مطبخ مجهز بالكامل بالأجهزة الكهربائية، 3 دورات مياه، وموقف خاص مغطى للسيارة. تشطيبات راقية جداً ودخول ذكي وتكييف مركزي بالكامل.",
-      price: 65000,
-      location: "الرياض - حي الملقا",
+      title: "شقة فاخرة للإيجار حي حدة - تصميم مودرن سياحي",
+      description: "شقة سكنية فاخرة بتصميم مودرن للإيجار السنوي في حي حدة الراقي بمدينة صنعاء. تتكون الشقة من: 3 غرف نوم (واحدة ماستر)، صالة واسعة ومفتوحة، مطبخ مجهز بالكامل بالأجهزة الكهربائية، 3 دورات مياه، وموقف خاص مغطى للسيارة. تشطيبات راقية جداً ودخول ذكي وتكييف مركزي بالكامل.",
+      price: 600,
+      currency: "USD",
+      location: "صنعاء - حدة",
       categoryId: "cat-realestate",
       images: [
         "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800",
         "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800"
       ],
       userId: "usr-2",
-      userName: "سارة العتيبي",
-      userPhone: "0598765432",
+      userName: "سارة الصنعاني",
+      userPhone: "771234567",
       isFeatured: true,
       status: "approved",
       createdAt: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(), // 2 days ago
@@ -109,18 +112,19 @@ const defaultDatabase: DatabaseSchema = {
     },
     {
       id: "ad-3",
-      title: "آيفون 15 برو ماكس 256 جيجا تيتانيوم طبيعي",
-      description: "للبيع جهاز iPhone 15 Pro Max سعة 256 جيجا بايت، اللون تيتانيوم طبيعي (Natural Titanium). الجهاز شبه جديد واستخدام حشيم، نسبة البطارية 98٪، بدون أي خدوش أو عيوب تماماً. يأتي مع العلبة الأصلية وسلك الشحن وحماية شاشة فاخرة وكفر هدية. ضمان حاسبات العرب ساري.",
-      price: 3900,
-      location: "جدة",
+      title: "آيفون 15 برو ماكس 256 جيجا تيتانيوم طبيعي نظيف",
+      description: "للبيع جهاز iPhone 15 Pro Max سعة 256 جيجا بايت، اللون تيتانيوم طبيعي (Natural Titanium). الجهاز شبه جديد واستخدام حشيم، نسبة البطارية 98٪، بدون أي خدوش أو عيوب تماماً. يأتي مع الععلبة الأصلية وسلك الشحن وحماية شاشة فاخرة وكفر هدية.",
+      price: 1100,
+      currency: "USD",
+      location: "عدن",
       categoryId: "cat-electronics",
       images: [
         "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?auto=format&fit=crop&q=80&w=800",
         "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=800"
       ],
       userId: "usr-1",
-      userName: "أحمد الحربي",
-      userPhone: "0512345678",
+      userName: "أحمد اليماني",
+      userPhone: "775082143",
       isFeatured: false,
       status: "approved",
       createdAt: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
@@ -129,17 +133,18 @@ const defaultDatabase: DatabaseSchema = {
     {
       id: "ad-4",
       title: "طقم كنب تركي فاخر يتسع لـ 8 أشخاص",
-      description: "طقم كنب تركي بحالة ممتازة جداً يتسع لـ 8 أشخاص، القماش مخمل فاخر مقاوم للبقع، واللون رمادي مع وسائد تركواز مبهجة. يتكون الطقم من: كنب ثلاثي عدد 2، وكرسي مفرد عدد 2، مع طاولة خدمة رئيسية وطاولتين جانبيتين مجاناً. لا توجد أي عيوب أو هبوط في الإسفنج. البيع بسبب الانتقال لمنزل جديد.",
-      price: 4500,
-      location: "الدمام",
+      description: "طقم كنب تركي بحالة ممتازة جداً يتسع لـ 8 أشخاص، القماش مخمل فاخر مقاوم للبقع، واللون رمادي مع وسائد تركواز مبهجة. يتكون الطقم من: كنب ثلاثي عدد 2، وكرسي مفرد عدد 2، مع طاولة خدمة رئيسية وطاولتين جانبيتين مجاناً. لا توجد أي عيوب أو هبوط في الإسفنج. البيع بسبب السفر خارج البلاد.",
+      price: 850000,
+      currency: "YER",
+      location: "تعز",
       categoryId: "cat-furniture",
       images: [
         "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&q=80&w=800",
         "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&q=80&w=800"
       ],
       userId: "usr-2",
-      userName: "سارة العتيبي",
-      userPhone: "0598765432",
+      userName: "سارة الصنعاني",
+      userPhone: "771234567",
       isFeatured: false,
       status: "approved",
       createdAt: new Date(Date.now() - 4 * 24 * 3600 * 1000).toISOString(),
@@ -147,36 +152,39 @@ const defaultDatabase: DatabaseSchema = {
     },
     {
       id: "ad-5",
-      title: "مطلوب مصمم جرافيك ومطور واجهات React لشركة تقنية",
-      description: "تعلن شركة تقنية رائدة بالرياض عن حاجتها الفورية لمصمم جرافيك ومطور واجهات أمامية ذو خبرة لا تقل عن سنتين في تطوير تطبيقات React وتنسيق واجهات مستخدم جذابة ومتناسقة. العمل حضوري بالكامل في مقر الشركة بالرياض - حي المروج. المميزات: بيئة عمل إبداعية، تأمين طبي فئة A، وبونص ربع سنوي.",
-      price: 9000,
-      location: "الرياض - حي المروج",
+      title: "مطلوب مصمم جرافيك ومطور واجهات React لشركة Yemen Ads",
+      description: "تعلن شركة Yemen Ads للإعلانات التقنية بصنعاء عن حاجتها الفورية لمصمم جرافيك ومطور واجهات أمامية ذو خبرة لا تقل عن سنتين في تطوير تطبيقات React وتنسيق واجهات مستخدم جذابة ومتناسقة. العمل حضوري بالكامل في مقر الشركة بصنعاء - حي حدة.",
+      price: 800,
+      currency: "USD",
+      location: "صنعاء - حدة",
       categoryId: "cat-jobs",
       images: [
         "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=800"
       ],
       userId: "usr-admin",
-      userName: "أبو فهد (المشرف العام)",
-      userPhone: "0500000000",
+      userName: "مدير المنصة (Yemen Ads)",
+      userPhone: "779217474",
       isFeatured: false,
       status: "approved",
       createdAt: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString(),
-      views: 188
+      views: 188,
+      jobDescription: "المسمى الوظيفي: مطور واجهات أمامية (React) ومصمم جرافيك\nالمهام الأساسية:\n- تطوير وتحسين واجهات منصة Yemen Ads وتجربة المستخدم.\n- تصميم البنرات الإعلانية والترويجية للمنصة.\nالشروط والخبرات:\n- خبرة لا تقل عن سنتين في تطوير تطبيقات React وTailwind CSS.\n- معرفة ممتازة بأدوات التصميم مثل Figma و Photoshop.\n- الالتزام بالعمل الحضوري والعمل بروح الفريق.\nالراتب والمميزات:\n- راتب شهري 800$ دولار أمريكي.\n- مكافآت وحوافز أداء دورية.\n- تأمين صحي شامل للكوادر."
     },
     {
       id: "ad-6",
-      title: "فلل مودرن فاخرة للبيع حي الياسمين مساحة 350م",
-      description: "فرصة نادرة للبيع فيلا مودرن تشطيب فاخر ومميز جداً في حي الياسمين الراقي، مساحة الأرض 350 متر مربع، الواجهة شمالية على شارع 15م. الفيلا تتضمن مسبح، مصعد، تكييف مخفي بالكامل، صالات مفتوحة واسعة، ملحق خارجي، 5 أجنحة نوم ماستر كاملة الخزانات، وجناح خاص بالخادمة والسائق. ضمانات شاملة على السباكة والكهرباء والهيكل الإنشائي لمدة 25 سنة.",
-      price: 3400000,
-      location: "الرياض - حي الياسمين",
+      title: "فلل مودرن فاخرة للبيع حي كريتر مساحة 350م",
+      description: "فرصة نادرة للبيع فيلا مودرن تشطيب فاخر ومميز جداً في حي كريتر الراقي بمدينة عدن، مساحة الأرض 350 متر مربع، الواجهة شمالية على شارع فسيح. الفيلا تتضمن مسبح، مصعد، تكييف مركزي بالكامل، صالات مفتوحة واسعة، ملحق خارجي، 5 أجنحة نوم ماستر كاملة الخزانات، وجناح خاص بالخدم. ضمانات شاملة على السباكة والكهرباء والهيكل الإنشائي لمدة 25 سنة.",
+      price: 240000,
+      currency: "USD",
+      location: "عدن - كريتر",
       categoryId: "cat-realestate",
       images: [
         "https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&q=80&w=800",
         "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=800"
       ],
       userId: "usr-2",
-      userName: "سارة العتيبي",
-      userPhone: "0598765432",
+      userName: "sara@ads.com",
+      userPhone: "771234567",
       isFeatured: false,
       status: "pending", // Pending ad for admin testing!
       createdAt: new Date().toISOString(),
@@ -199,14 +207,14 @@ const defaultDatabase: DatabaseSchema = {
       receiverId: "usr-2",
       adId: "ad-1",
       adTitle: "تويوتا كامري 2023 فل كامل - بحالة الوكالة",
-      content: "وعليكم السلام ورحمة الله وبركاته، نعم السيارة لا زالت متوفرة والحد النهائي هو 93 ألف ريال للصامل.",
+      content: "وعليكم السلام ورحمة الله وبركاته، نعم السيارة لا زالت متوفرة والحد النهائي هو 93 ألف ريال سعودي للصامل.",
       createdAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString()
     }
   ],
   banners: [
     {
       id: "ban-1",
-      titleAr: "سوق السيارات الأكبر في جيبك",
+      titleAr: "سوق السيارات الأكبر والأسرع في اليمن",
       descriptionAr: "تصفح مئات السيارات المستعملة والجديدة يومياً، وتواصل مع البائعين مباشرة دون وسيط وبكبسة زر واحدة.",
       imageUrl: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&q=80&w=1200",
       link: "/?category=cat-cars",
@@ -214,13 +222,14 @@ const defaultDatabase: DatabaseSchema = {
     },
     {
       id: "ban-2",
-      titleAr: "ابحث عن منزل أحلامك الآن",
-      descriptionAr: "أحدث عروض الشقق والفيلات والأراضي للإيجار والبيع في جميع مدن المملكة بتفاصيل وصور حقيقية.",
+      titleAr: "ابحث عن منزل أحلامك في أرقى أحياء اليمن",
+      descriptionAr: "أحدث عروض الشقق والفيلات والأراضي للإيجار والبيع في جميع المحافظات اليمنية بتفاصيل وصور حقيقية.",
       imageUrl: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200",
       link: "/?category=cat-realestate",
       active: true
     }
-  ]
+  ],
+  notifications: []
 };
 
 // Reading / writing database
@@ -231,7 +240,53 @@ function getDB(): DatabaseSchema {
   }
   try {
     const content = fs.readFileSync(DB_FILE, "utf-8");
-    return JSON.parse(content);
+    const db = JSON.parse(content) as DatabaseSchema;
+
+    if (!db.notifications) {
+      db.notifications = [];
+    }
+    
+    // Ensure admin user exists with new Yemen Ads secure credentials
+    const adminIdx = db.users.findIndex(u => u.id === "usr-admin" || u.role === "admin");
+    if (adminIdx !== -1) {
+      db.users[adminIdx].email = "admin@yemenads.com";
+      db.users[adminIdx].password = "YemenAds2026!";
+      db.users[adminIdx].name = "مدير المنصة (Yemen Ads)";
+      db.users[adminIdx].phone = "779217474";
+    } else {
+      db.users.push(defaultDatabase.users[0]);
+    }
+
+    // Upgrade default categories with image URLs if missing
+    db.categories.forEach(cat => {
+      const defCat = defaultDatabase.categories.find(c => c.id === cat.id);
+      if (defCat && !cat.imageUrl) {
+        cat.imageUrl = defCat.imageUrl;
+      }
+    });
+
+    // Migrate Saudi locations to Yemeni locations on startup automatically
+    db.ads.forEach(ad => {
+      if (ad.location === "الرياض" || ad.location === "الرياض - حي الملقا") {
+        ad.location = "صنعاء - حدة";
+      } else if (ad.location === "جدة") {
+        ad.location = "عدن";
+      } else if (ad.location === "الدمام") {
+        ad.location = "تعز";
+      } else if (ad.location === "مكة المكرمة") {
+        ad.location = "الحديدة";
+      } else if (ad.location === "المدينة المنورة") {
+        ad.location = "إب";
+      } else if (ad.location === "أبها") {
+        ad.location = "المكلا";
+      }
+      if (!ad.currency) {
+        ad.currency = ad.categoryId === "cat-cars" ? "SAR" : ad.categoryId === "cat-realestate" ? "USD" : "YER";
+      }
+    });
+
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+    return db;
   } catch (e) {
     console.error("Error parsing db.json, resetting to default.", e);
     return defaultDatabase;
@@ -440,7 +495,7 @@ app.get("/api/ads/:id", (req, res) => {
 });
 
 app.post("/api/ads", authMiddleware, (req, res) => {
-  const { title, description, price, location, categoryId, images } = req.body;
+  const { title, description, price, currency, location, categoryId, images, jobDescription } = req.body;
   if (!title || !description || price === undefined || !location || !categoryId) {
     return res.status(400).json({ error: "يرجى ملء جميع الخانات الأساسية للإعلان" });
   }
@@ -453,6 +508,7 @@ app.post("/api/ads", authMiddleware, (req, res) => {
     title,
     description,
     price: Number(price),
+    currency: currency || "YER",
     location,
     categoryId,
     images: images && images.length > 0 ? images : ["https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=800"],
@@ -462,7 +518,8 @@ app.post("/api/ads", authMiddleware, (req, res) => {
     isFeatured: false,
     status: "pending", // Newly created ads are pending for admin approval!
     createdAt: new Date().toISOString(),
-    views: 0
+    views: 0,
+    jobDescription
   };
 
   db.ads.push(newAd);
@@ -473,7 +530,7 @@ app.post("/api/ads", authMiddleware, (req, res) => {
 
 app.put("/api/ads/:id", authMiddleware, (req, res) => {
   const { id } = req.params;
-  const { title, description, price, location, categoryId, images } = req.body;
+  const { title, description, price, currency, location, categoryId, images, jobDescription } = req.body;
   const user = (req as any).user;
   const db = getDB();
 
@@ -486,12 +543,41 @@ app.put("/api/ads/:id", authMiddleware, (req, res) => {
     return res.status(403).json({ error: "لا تملك الصلاحية لتعديل هذا الإعلان" });
   }
 
+  const oldPrice = ad.price;
+
   if (title) ad.title = title;
   if (description) ad.description = description;
   if (price !== undefined) ad.price = Number(price);
+  if (currency) ad.currency = currency;
   if (location) ad.location = location;
   if (categoryId) ad.categoryId = categoryId;
   if (images) ad.images = images;
+  if (jobDescription !== undefined) ad.jobDescription = jobDescription;
+
+  // Check for price drop to notify watchers
+  const newPrice = ad.price;
+  if (price !== undefined && newPrice < oldPrice) {
+    const cur = currency || ad.currency || "YER";
+    const currLabel = cur === "SAR" ? "ريال سعودي" : cur === "USD" ? "دولار أمريكي" : "ريال يمني";
+    db.users.forEach((u) => {
+      if (u.favorites && u.favorites.includes(ad.id)) {
+        const notif: InAppNotification = {
+          id: `notif-${Date.now()}-${u.id}`,
+          userId: u.id,
+          title: "تخفيض السعر في المفضلة!",
+          content: `تخفيض جديد! انخفض سعر الإعلان "${ad.title}" في المفضلة من ${oldPrice.toLocaleString()} إلى ${newPrice.toLocaleString()} ${currLabel}.`,
+          type: "price_drop",
+          adId: ad.id,
+          oldPrice,
+          newPrice,
+          currency: cur as any,
+          isRead: false,
+          createdAt: new Date().toISOString()
+        };
+        db.notifications.push(notif);
+      }
+    });
+  }
 
   // Reset status to pending to verify content after updates
   if (user.role !== "admin") {
@@ -605,14 +691,14 @@ app.get("/api/categories", (req, res) => {
 });
 
 app.post("/api/categories", adminMiddleware, (req, res) => {
-  const { nameAr, nameEn, icon } = req.body;
+  const { nameAr, nameEn, icon, imageUrl } = req.body;
   if (!nameAr || !nameEn || !icon) {
     return res.status(400).json({ error: "جميع حقول التصنيف مطلوبة" });
   }
 
   const db = getDB();
   const id = `cat-${Date.now()}`;
-  const newCat: Category = { id, nameAr, nameEn, icon };
+  const newCat: Category = { id, nameAr, nameEn, icon, imageUrl };
   db.categories.push(newCat);
   writeDB(db);
 
@@ -621,7 +707,7 @@ app.post("/api/categories", adminMiddleware, (req, res) => {
 
 app.put("/api/categories/:id", adminMiddleware, (req, res) => {
   const { id } = req.params;
-  const { nameAr, nameEn, icon } = req.body;
+  const { nameAr, nameEn, icon, imageUrl } = req.body;
   const db = getDB();
 
   const catIndex = db.categories.findIndex((cat) => cat.id === id);
@@ -630,6 +716,7 @@ app.put("/api/categories/:id", adminMiddleware, (req, res) => {
   if (nameAr) db.categories[catIndex].nameAr = nameAr;
   if (nameEn) db.categories[catIndex].nameEn = nameEn;
   if (icon) db.categories[catIndex].icon = icon;
+  if (imageUrl !== undefined) db.categories[catIndex].imageUrl = imageUrl;
 
   writeDB(db);
   res.json(db.categories[catIndex]);
@@ -788,9 +875,83 @@ app.post("/api/chats/send", authMiddleware, (req, res) => {
   };
 
   db.messages.push(newMessage);
+
+  // Trigger in-app notification for the receiver
+  const newNotif: InAppNotification = {
+    id: `notif-${Date.now()}`,
+    userId: receiverId,
+    title: "رسالة جديدة بخصوص إعلانك",
+    content: `أرسل لك ${user.name} رسالة بخصوص إعلانك "${adTitle}": "${content.length > 60 ? content.substring(0, 60) + '...' : content}"`,
+    type: "reply",
+    adId,
+    isRead: false,
+    createdAt: new Date().toISOString()
+  };
+  db.notifications.push(newNotif);
+
   writeDB(db);
 
   res.status(201).json(newMessage);
+});
+
+// 6.5 IN-APP NOTIFICATIONS
+app.get("/api/notifications", authMiddleware, (req, res) => {
+  const user = (req as any).user;
+  const db = getDB();
+  const userNotifs = db.notifications.filter(n => n.userId === user.id);
+  // Sort by newest first
+  userNotifs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json(userNotifs);
+});
+
+app.put("/api/notifications/mark-all-read", authMiddleware, (req, res) => {
+  const user = (req as any).user;
+  const db = getDB();
+  let updated = false;
+  db.notifications.forEach(n => {
+    if (n.userId === user.id && !n.isRead) {
+      n.isRead = true;
+      updated = true;
+    }
+  });
+  if (updated) {
+    writeDB(db);
+  }
+  const userNotifs = db.notifications.filter(n => n.userId === user.id);
+  userNotifs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json(userNotifs);
+});
+
+app.put("/api/notifications/:id/read", authMiddleware, (req, res) => {
+  const { id } = req.params;
+  const user = (req as any).user;
+  const db = getDB();
+  const notif = db.notifications.find(n => n.id === id);
+  if (!notif) {
+    return res.status(404).json({ error: "الإشعار غير موجود" });
+  }
+  if (notif.userId !== user.id) {
+    return res.status(403).json({ error: "غير مصرح لك بتعديل هذا الإشعار" });
+  }
+  notif.isRead = true;
+  writeDB(db);
+  res.json(notif);
+});
+
+app.delete("/api/notifications/:id", authMiddleware, (req, res) => {
+  const { id } = req.params;
+  const user = (req as any).user;
+  const db = getDB();
+  const idx = db.notifications.findIndex(n => n.id === id);
+  if (idx === -1) {
+    return res.status(404).json({ error: "الإشعار غير موجود" });
+  }
+  if (db.notifications[idx].userId !== user.id) {
+    return res.status(403).json({ error: "غير مصرح لك بحذف هذا الإشعار" });
+  }
+  db.notifications.splice(idx, 1);
+  writeDB(db);
+  res.json({ success: true });
 });
 
 // 7. BANNERS (Hero Slider)

@@ -53,6 +53,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newCatNameAr, setNewCatNameAr] = useState("");
   const [newCatNameEn, setNewCatNameEn] = useState("");
   const [newCatIcon, setNewCatIcon] = useState("HelpCircle");
+  const [newCatImg, setNewCatImg] = useState("");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
 
   // Banner Form State
@@ -253,7 +254,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         body: JSON.stringify({
           nameAr: newCatNameAr.trim(),
           nameEn: newCatNameEn.trim(),
-          icon: newCatIcon
+          icon: newCatIcon,
+          imageUrl: newCatImg.trim() || undefined
         })
       });
 
@@ -262,6 +264,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         setNewCatNameAr("");
         setNewCatNameEn("");
         setNewCatIcon("HelpCircle");
+        setNewCatImg("");
         setTimeout(() => setActionSuccess(""), 3000);
         onReloadData();
       } else {
@@ -739,8 +742,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 rounded-xl shadow-sm">
-                        <CategoryIcon name={cat.icon} className="h-5 w-5" />
+                      <div className="p-2.5 bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 rounded-xl shadow-sm overflow-hidden shrink-0 h-10 w-10 flex items-center justify-center">
+                        {cat.imageUrl ? (
+                          <img
+                            src={cat.imageUrl}
+                            alt={cat.nameAr}
+                            className="h-full w-full object-cover rounded"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <CategoryIcon name={cat.icon} className="h-5 w-5" />
+                        )}
                       </div>
                       <div>
                         <h4 className="font-bold text-slate-800 dark:text-white text-sm">{cat.nameAr}</h4>
@@ -806,6 +818,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     value={newCatNameEn}
                     onChange={(e) => setNewCatNameEn(e.target.value)}
                     placeholder="مثال: Boats & Yachts"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm focus:outline-none dark:text-white placeholder-slate-400"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-300 block">
+                    رابط صورة التصنيف (اختياري)
+                  </label>
+                  <input
+                    type="url"
+                    value={newCatImg}
+                    onChange={(e) => setNewCatImg(e.target.value)}
+                    placeholder="https://images.unsplash.com/photo-..."
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm focus:outline-none dark:text-white placeholder-slate-400"
                   />
                 </div>

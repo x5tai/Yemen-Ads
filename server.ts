@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
+import admin from "firebase-admin";
 import { User, Category, Ad, Message, Banner, ChatThread, InAppNotification } from "./src/types";
 
 const app = express();
@@ -295,6 +296,147 @@ function getDB(): DatabaseSchema {
 
 function writeDB(data: DatabaseSchema) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+  // Synchronize changes to Firebase Firestore in the background
+  saveToFirestore(data).catch(err => {
+    console.error("Background Firestore write failed:", err);
+  });
+}
+
+// ----------------------------------------------------
+// FIREBASE FIRESTORE SYNC LOGIC
+// ----------------------------------------------------
+let firestore: any = null;
+
+try {
+  const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+  if (fs.existsSync(configPath)) {
+    const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    admin.initializeApp({
+      projectId: config.projectId
+    });
+    firestore = (admin as any).firestore(config.firestoreDatabaseId || undefined);
+    console.log("Firebase Admin successfully initialized with Project ID:", config.projectId);
+  } else {
+    console.warn("firebase-applet-config.json not found, running without Firestore sync.");
+  }
+} catch (e) {
+  console.error("Error initializing Firebase Admin, checking if already initialized:", e);
+  try {
+    const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      firestore = (admin as any).firestore(config.firestoreDatabaseId || undefined);
+      console.log("Firebase Admin Firestore retrieved successfully.");
+    }
+  } catch (err) {
+    console.error("Critical error retrieving Firestore instance:", err);
+  }
+}
+
+async function syncFromFirestore() {
+  if (!firestore) {
+    console.log("Firestore not initialized, skipping syncFromFirestore.");
+    return;
+  }
+  try {
+    console.log("Starting Firebase Firestore Synchronization...");
+    const collections = ["users", "categories", "ads", "messages", "banners", "notifications"];
+    const dbData: Partial<DatabaseSchema> = {};
+    
+    for (const collName of collections) {
+      const snapshot = await firestore.collection(collName).get();
+      if (!snapshot.empty) {
+        dbData[collName as keyof DatabaseSchema] = snapshot.docs.map((doc: any) => {
+          return { id: doc.id, ...doc.data() };
+        }) as any;
+        console.log(`Synced ${snapshot.size} items for collection ${collName} from Firestore.`);
+      } else {
+        console.log(`Collection ${collName} is empty in Firestore.`);
+      }
+    }
+    
+    const db = getDB(); // Load current local file backup
+    let updated = false;
+    
+    for (const collName of collections) {
+      const items = dbData[collName as keyof DatabaseSchema];
+      if (items && items.length > 0) {
+        (db as any)[collName] = items;
+        updated = true;
+      } else {
+        // If Firestore was empty, upload our local default data to Firestore so it is synchronized!
+        const localItems = (db as any)[collName] || [];
+        if (localItems.length > 0) {
+          console.log(`Uploading ${localItems.length} local items of ${collName} to Firestore...`);
+          const batch = firestore.batch();
+          localItems.forEach((item: any) => {
+            const docRef = firestore.collection(collName).doc(item.id);
+            batch.set(docRef, item);
+          });
+          await batch.commit();
+        }
+      }
+    }
+    
+    if (updated) {
+      fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+      console.log("Local db.json successfully updated and synced with Firestore.");
+    }
+  } catch (err) {
+    console.error("Failed to sync from Firebase Firestore on startup. Using local db.json fallback.", err);
+  }
+}
+
+async function saveToFirestore(data: DatabaseSchema) {
+  if (!firestore) return;
+  try {
+    const collections = ["users", "categories", "ads", "messages", "banners", "notifications"];
+    for (const collName of collections) {
+      const items = (data as any)[collName] || [];
+      const itemIds = new Set(items.map((i: any) => i.id).filter(Boolean));
+      
+      // Get all existing doc IDs in Firestore for this collection to clean up deleted ones
+      const snapshot = await firestore.collection(collName).get();
+      const firestoreIds = snapshot.docs.map((doc: any) => doc.id);
+      
+      // Delete docs that are no longer in items list
+      const deleteBatch = firestore.batch();
+      let deleteCount = 0;
+      for (const id of firestoreIds) {
+        if (!itemIds.has(id)) {
+          deleteBatch.delete(firestore.collection(collName).doc(id));
+          deleteCount++;
+          if (deleteCount >= 400) {
+            await deleteBatch.commit();
+            deleteCount = 0;
+          }
+        }
+      }
+      if (deleteCount > 0) {
+        await deleteBatch.commit();
+      }
+
+      // Upsert current items
+      const upsertBatch = firestore.batch();
+      let upsertCount = 0;
+      for (const item of items) {
+        if (!item.id) continue;
+        const docRef = firestore.collection(collName).doc(item.id);
+        upsertBatch.set(docRef, item);
+        upsertCount++;
+        if (upsertCount >= 400) {
+          await upsertBatch.commit();
+          upsertCount = 0;
+        }
+      }
+      if (upsertCount > 0) {
+        await upsertBatch.commit();
+      }
+    }
+    console.log("Successfully synchronized changes to Firebase Firestore.");
+  } catch (err) {
+    console.error("Failed to sync changes to Firestore:", err);
+  }
 }
 
 // ----------------------------------------------------
@@ -1032,6 +1174,9 @@ app.get("/api/admin/metrics", adminMiddleware, (req, res) => {
 // VITE OR STATIC FILES SERVING (DEVELOPMENT vs PRODUCTION)
 // ----------------------------------------------------
 async function startServer() {
+  // Sync database with Firestore before starting
+  await syncFromFirestore();
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

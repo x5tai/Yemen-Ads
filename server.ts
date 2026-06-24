@@ -662,7 +662,7 @@ app.post("/api/ads", authMiddleware, (req, res) => {
     userName: user.name,
     userPhone: user.phone,
     isFeatured: false,
-    status: "pending", // Newly created ads are pending for admin approval!
+    status: "approved", // Approved immediately so it appears to clients right away
     createdAt: new Date().toISOString(),
     views: 0,
     jobDescription
@@ -725,9 +725,9 @@ app.put("/api/ads/:id", authMiddleware, (req, res) => {
     });
   }
 
-  // Reset status to pending to verify content after updates
+  // Set status to approved so it appears immediately
   if (user.role !== "admin") {
-    ad.status = "pending";
+    ad.status = "approved";
   }
 
   db.ads[adIndex] = ad;
@@ -1174,9 +1174,6 @@ app.get("/api/admin/metrics", adminMiddleware, (req, res) => {
 // VITE OR STATIC FILES SERVING (DEVELOPMENT vs PRODUCTION)
 // ----------------------------------------------------
 async function startServer() {
-  // Sync database with Firestore before starting
-  await syncFromFirestore();
-
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -1193,6 +1190,10 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Classified Ads Platform server running at http://0.0.0.0:${PORT}`);
+    // Sync database with Firestore asynchronously after starting the server
+    syncFromFirestore().catch(err => {
+      console.error("Async startup Firestore sync failed:", err);
+    });
   });
 }
 

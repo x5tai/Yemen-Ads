@@ -3,6 +3,8 @@ import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import admin from "firebase-admin";
+import { initializeApp, getApps, getApp, App } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 import { User, Category, Ad, Message, Banner, ChatThread, InAppNotification } from "./src/types";
 
 const app = express();
@@ -311,26 +313,28 @@ try {
   const configPath = path.join(process.cwd(), "firebase-applet-config.json");
   if (fs.existsSync(configPath)) {
     const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    admin.initializeApp({
-      projectId: config.projectId
-    });
-    firestore = (admin as any).firestore(config.firestoreDatabaseId || undefined);
-    console.log("Firebase Admin successfully initialized with Project ID:", config.projectId);
+    let app: App;
+    const apps = getApps();
+    if (apps.length === 0) {
+      app = initializeApp({
+        projectId: config.projectId
+      });
+    } else {
+      app = apps[0];
+    }
+    
+    // Correctly initialize Firestore with the specified Database ID using modular getFirestore
+    if (config.firestoreDatabaseId) {
+      firestore = getFirestore(app, config.firestoreDatabaseId);
+    } else {
+      firestore = getFirestore(app);
+    }
+    console.log("Firebase Admin successfully initialized with Project ID:", config.projectId, "and Database ID:", config.firestoreDatabaseId || "(default)");
   } else {
     console.warn("firebase-applet-config.json not found, running without Firestore sync.");
   }
 } catch (e) {
-  console.error("Error initializing Firebase Admin, checking if already initialized:", e);
-  try {
-    const configPath = path.join(process.cwd(), "firebase-applet-config.json");
-    if (fs.existsSync(configPath)) {
-      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-      firestore = (admin as any).firestore(config.firestoreDatabaseId || undefined);
-      console.log("Firebase Admin Firestore retrieved successfully.");
-    }
-  } catch (err) {
-    console.error("Critical error retrieving Firestore instance:", err);
-  }
+  console.error("Error initializing Firebase Admin:", e);
 }
 
 async function syncFromFirestore() {
@@ -357,6 +361,7 @@ async function syncFromFirestore() {
     
     const db = getDB(); // Load current local file backup
     let updated = false;
+    let forceSaveToFirestore = false;
     
     for (const collName of collections) {
       const items = dbData[collName as keyof DatabaseSchema];
@@ -377,10 +382,46 @@ async function syncFromFirestore() {
         }
       }
     }
+
+    // ALWAYS ensure essential users (Admin & demo users) are present and correct in the merged DB
+    const adminIdx = db.users.findIndex(u => u.id === "usr-admin" || u.role === "admin");
+    if (adminIdx !== -1) {
+      if (db.users[adminIdx].email !== "admin@yemenads.com" || db.users[adminIdx].password !== "YemenAds2026!") {
+        db.users[adminIdx].email = "admin@yemenads.com";
+        db.users[adminIdx].password = "YemenAds2026!";
+        db.users[adminIdx].name = "مدير المنصة (Yemen Ads)";
+        db.users[adminIdx].phone = "779217474";
+        db.users[adminIdx].role = "admin";
+        updated = true;
+        forceSaveToFirestore = true;
+      }
+    } else {
+      db.users.push(defaultDatabase.users[0]);
+      updated = true;
+      forceSaveToFirestore = true;
+    }
+
+    const demoUser1Idx = db.users.findIndex(u => u.id === "usr-1" || u.email === "ahmed@ads.com");
+    if (demoUser1Idx === -1) {
+      db.users.push(defaultDatabase.users[1]);
+      updated = true;
+      forceSaveToFirestore = true;
+    }
+
+    const demoUser2Idx = db.users.findIndex(u => u.id === "usr-2" || u.email === "sara@ads.com");
+    if (demoUser2Idx === -1) {
+      db.users.push(defaultDatabase.users[2]);
+      updated = true;
+      forceSaveToFirestore = true;
+    }
     
     if (updated) {
       fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
       console.log("Local db.json successfully updated and synced with Firestore.");
+      if (forceSaveToFirestore) {
+        console.log("Uploading guaranteed credentials/users back to Firestore...");
+        await saveToFirestore(db);
+      }
     }
   } catch (err) {
     console.error("Failed to sync from Firebase Firestore on startup. Using local db.json fallback.", err);

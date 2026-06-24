@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "isBlocked": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "avatar": { "type": "string" }
+      },
+      "required": ["id", "email", "name", "phone", "role", "isBlocked", "createdAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Classified categories",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nameAr": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "icon": { "type": "string" },
+        "count": { "type": "number" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["id", "nameAr", "nameEn", "icon"]
+    },
+    "Ad": {
+      "title": "Ad",
+      "description": "Classified advertisement",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "currency": { "type": "string", "enum": ["YER", "SAR", "USD"] },
+        "location": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "images": { "type": "array" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhone": { "type": "string" },
+        "isFeatured": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["approved", "pending", "rejected"] },
+        "createdAt": { "type": "string" },
+        "views": { "type": "number" },
+        "jobDescription": { "type": "string" }
+      },
+      "required": ["id", "title", "description", "price", "location", "categoryId", "images", "userId", "userName", "userPhone", "isFeatured", "status", "createdAt", "views"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "adId": { "type": "string" },
+        "adTitle": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "senderId", "receiverId", "adId", "adTitle", "content", "createdAt"]
+    },
+    "Banner": {
+      "title": "Banner",
+      "description": "Promotional banner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "titleAr": { "type": "string" },
+        "descriptionAr": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "link": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "titleAr", "descriptionAr", "imageUrl", "link", "active"]
+    },
+    "InAppNotification": {
+      "title": "InAppNotification",
+      "description": "In app notification for user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string", "enum": ["reply", "price_drop", "system"] },
+        "adId": { "type": "string" },
+        "oldPrice": { "type": "number" },
+        "newPrice": { "type": "number" },
+        "currency": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "content", "type", "isRead", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of user accounts"
+    },
+    "categories": {
+      "schema": "Category",
+      "description": "Collection of classified categories"
+    },
+    "ads": {
+      "schema": "Ad",
+      "description": "Collection of classified ads"
+    },
+    "messages": {
+      "schema": "Message",
+      "description": "Collection of chat messages"
+    },
+    "banners": {
+      "schema": "Banner",
+      "description": "Collection of promotional banners"
+    },
+    "notifications": {
+      "schema": "InAppNotification",
+      "description": "Collection of in-app notifications"
+    }
+  }
+}

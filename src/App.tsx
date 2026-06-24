@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { User, Ad, Category, Banner, InAppNotification } from "./types";
+import { fetchAdsFromFirestore, saveAdToFirestore, deleteAdFromFirestore } from "./services/adsService";
 import { Header } from "./components/Header";
 import { AdCard } from "./components/AdCard";
 import { AddAdForm } from "./components/AddAdForm";
@@ -93,22 +94,17 @@ export default function App() {
 
   const fetchAllAds = async () => {
     try {
-      const url = new URL("/api/ads", window.location.origin);
-      if (selectedCategory) url.searchParams.append("categoryId", selectedCategory);
-      if (searchQuery) url.searchParams.append("search", searchQuery);
-      if (selectedLocation) url.searchParams.append("location", selectedLocation);
-      if (minPrice) url.searchParams.append("minPrice", minPrice);
-      if (maxPrice) url.searchParams.append("maxPrice", maxPrice);
-      if (onlyFeatured) url.searchParams.append("onlyFeatured", "true");
-
-      const response = await fetch(url.toString(), {
-        headers: currentUser ? { "Authorization": `Bearer ${currentUser.id}` } : {}
+      const data = await fetchAdsFromFirestore({
+        categoryId: selectedCategory || undefined,
+        search: searchQuery || undefined,
+        location: selectedLocation || undefined,
+        minPrice: minPrice || undefined,
+        maxPrice: maxPrice || undefined,
+        onlyFeatured: onlyFeatured,
+        isAdmin: currentUser?.role === "admin",
+        currentUserId: currentUser?.id || undefined
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        setAds(data);
-      }
+      setAds(data);
     } catch (e) {
       console.error("Error fetching ads", e);
     }
@@ -424,24 +420,20 @@ export default function App() {
     const isEdit = !!editingAd;
 
     try {
-      const url = isEdit ? `/api/ads/${editingAd!.id}` : "/api/ads";
-      const method = isEdit ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${currentUser.id}`
-        },
-        body: JSON.stringify(adData)
+      const result = await saveAdToFirestore({
+        ...adData,
+        id: isEdit ? editingAd!.id : undefined,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userPhone: currentUser.phone,
+        status: isEdit ? editingAd!.status : "approved",
+        createdAt: isEdit ? editingAd!.createdAt : new Date().toISOString(),
+        views: isEdit ? editingAd!.views : 0
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        setEditingAd(undefined);
-        await fetchAllAds();
-        return result;
-      }
+      setEditingAd(undefined);
+      await fetchAllAds();
+      return result;
     } catch (e) {
       console.error("Failed to save classified ad", e);
     }
@@ -451,17 +443,11 @@ export default function App() {
   const handleAdDelete = async (adId: string) => {
     if (!currentUser) return;
     try {
-      const response = await fetch(`/api/ads/${adId}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${currentUser.id}` }
-      });
-
-      if (response.ok) {
-        await fetchAllAds();
-        // If deleted is currently showing in details modal, close it
-        if (activeAdDetails?.id === adId) {
-          setActiveAdDetails(null);
-        }
+      await deleteAdFromFirestore(adId);
+      await fetchAllAds();
+      // If deleted is currently showing in details modal, close it
+      if (activeAdDetails?.id === adId) {
+        setActiveAdDetails(null);
       }
     } catch (e) {
       console.error("Failed to delete ad", e);

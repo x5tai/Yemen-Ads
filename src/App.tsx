@@ -557,7 +557,7 @@ export default function App() {
         onAddAdClick={() => {
           if (!currentUser) {
             setShowLoginModal(true);
-          } else {
+          } else if (currentUser.role === "admin") {
             setEditingAd(undefined);
             setActiveView("addAd");
           }
@@ -902,30 +902,7 @@ export default function App() {
               </div>
             )}
 
-            {/* Diagnostic helper demo login shortcuts (AI STUDIO COMFORT) */}
-            {!isRegisterMode && (
-              <div className="mb-5 p-2.5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200/80 dark:border-neutral-800 rounded-lg space-y-1.5">
-                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 font-semibold block text-center">
-                  💡 حسابات تجريبية مجهزة للفحص والمراجعة بنقرة واحدة:
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fillQuickDemoAccount("admin")}
-                    className="py-1 bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-[10px] rounded cursor-pointer transition-colors"
-                  >
-                    مدير (Admin)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fillQuickDemoAccount("user")}
-                    className="py-1 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 text-neutral-900 dark:text-neutral-100 font-semibold text-[10px] rounded cursor-pointer border border-neutral-200 dark:border-neutral-700 transition-colors"
-                  >
-                    عضو (User)
-                  </button>
-                </div>
-              </div>
-            )}
+
 
             {/* Auth forms */}
             <form onSubmit={isRegisterMode ? handleRegisterSubmit : handleLoginSubmit} className="space-y-4">

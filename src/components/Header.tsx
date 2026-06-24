@@ -171,13 +171,15 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* Add Ad Button */}
-            <button
-              onClick={onAddAdClick}
-              className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-100 text-white dark:text-neutral-900 font-semibold rounded-lg text-xs transition-all cursor-pointer transform active:scale-[0.98]"
-            >
-              <PlusCircle className="h-3.5 w-3.5" />
-              <span>أضف إعلان</span>
-            </button>
+            {currentUser && currentUser.role === "admin" && (
+              <button
+                onClick={onAddAdClick}
+                className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-100 text-white dark:text-neutral-900 font-semibold rounded-lg text-xs transition-all cursor-pointer transform active:scale-[0.98]"
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span>أضف إعلان</span>
+              </button>
+            )}
 
             {/* Notifications Dropdown */}
             {currentUser && (

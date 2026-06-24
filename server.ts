@@ -501,6 +501,10 @@ app.post("/api/ads", authMiddleware, (req, res) => {
   }
 
   const user = (req as any).user;
+  if (user.role !== "admin") {
+    return res.status(403).json({ error: "الادمن فقط من يستطيع اضافه اعلانات" });
+  }
+
   const db = getDB();
 
   const newAd: Ad = {
